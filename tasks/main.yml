@@ -1,0 +1,117 @@
+---
+# ks8_Master task main.yml file
+
+- name: "configuring docker repository"
+  package:
+    name: "docker"
+    state: present
+
+- name: "starting and enabling the docker services"
+  service:
+   name: "docker"
+   state: started
+   enabled: yes
+
+- name: "creating repo for kubeadm"
+  yum_repository:
+     name: "kubernetes"
+     description: "Kubernetes"
+     baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+     enabled: yes
+     gpgcheck: yes
+     repo_gpgcheck: yes
+     gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+     exclude:
+             - kubelet 
+             - kubeadm 
+             - kubectl
+
+- name: "installing kubeadm"
+  yum:
+    name: "kubeadm"
+    disable_excludes: kubernetes
+    state: present
+
+- name: "starting and enabling the kubelet services"
+  service:
+    name: "kubelet"
+    state: started
+    enabled: yes
+
+- name: "creating a file"
+  file:
+    path: "/etc/docker/daemon.json"
+    state: file     
+
+- name: "coping the content"
+  copy:
+    content: |
+      {
+       "exec-opts":["native.cgroupdriver=systemd"]
+      }
+    dest: "/etc/docker/daemon.json"
+  register: driver
+
+- name: "restart docker service"
+  service:
+    name: docker
+    state: restarted
+  when: driver.changed == true
+
+- name: "installing iproute-tc"
+  package:
+    name: "iproute-tc"
+    state: present
+
+- name: "setting up the network"
+  copy:
+    content: |
+            net.bridge.bridge-nf-call-ip6tables = 1
+            net.bridge.bridge-nf-call-iptables = 1
+    dest: "/etc/sysctl.d/k8s.conf"
+  register: network
+
+- name: "refreshing the sysctl"
+  command: "sysctl --system"
+  changed_when: false
+  when: network.changed == true
+
+- name: "downloading the images"
+  command: "kubeadm config images pull"
+  changed_when: false
+
+- name: "initailizing the kubeadm"
+  command: "kubeadm init --pod-network-cidr={{ cidr }} --ignore-preflight-errors=NumCPU --ignore-preflight-errors=Mem"
+  ignore_errors: yes
+  register: join_token
+
+- debug:
+    msg: "{{ join_token.stdout_lines | join token }}"
+  when: join_token.changed == true
+  ignore_errors: yes
+
+- name: "Creating a kube directory"
+  file:
+    path: "$HOME/.kube"
+    state: directory
+
+- name: "Coping the kube config file"
+  copy:
+    src: "/etc/kubernetes/admin.conf"
+    dest: "$HOME/.kube/config"
+    remote_src: yes
+
+- name: "Downloading flannel file"
+  command: "kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml "
+
+- name: "getting the nodes"
+  command: "kubectl get nodes"
+  register: nodes
+  
+- debug:
+        var: nodes
+
+- name: "here's your token to connect"
+  debug:
+          msg: "{{ join_token.stdout_lines }}"
+         
