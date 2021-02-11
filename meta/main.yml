@@ -20,3 +20,4 @@ galaxy_info:
             
 dependencies: 
           - 24_komal.aws_ec2_dynamic_inventory
+          - 24_komal.ec2_k8s_slave
