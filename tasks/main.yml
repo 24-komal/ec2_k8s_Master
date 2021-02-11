@@ -1,5 +1,5 @@
 ---
-# ks8_Master task main.yml file
+# task file for k8s_Master
 
 - name: "configuring docker repository"
   package:
