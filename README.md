@@ -1,7 +1,7 @@
 # Ansible Role: ec2_k8s_Master
 =========
 
-A simple Ansible role for creating a Ks8 Master on AWS ec2 instance.
+A simple Ansible role for creating a Ks8 Master on AWS ec2 instance. This role can also be used on Amazon Linux 2 ami having t2.micro instance type or any higher insatance type.
 
 
 It will install the following:-
