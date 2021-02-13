@@ -41,7 +41,8 @@
 - name: "creating a file"
   file:
     path: "/etc/docker/daemon.json"
-    state: file     
+    state: touch
+  changed_when: false
 
 - name: "coping the content"
   copy:
